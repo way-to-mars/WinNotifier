@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http;
+﻿using System.Diagnostics;
 
 namespace WinNotifier
 {
@@ -7,18 +6,16 @@ namespace WinNotifier
     {
         static void Main(string[] args)
         {
-            var client = new WebClient("...");
-            bool flag = false;
-            int counter = 10;
+            var client = new WebClient("...", TimeSpan.FromMinutes(10));
 
-            do
-            {
-                flag = client.Post(title: "C#", message: "OK");
-                counter--;
-            } while (!flag && counter > 0);
+            string message;
+            if (args.Length > 0) message = String.Join(separator: "; ", args);
+            else
+                 message = "<No message>";
+            
+            client.Post(title: "Honor", message: message);
 
-            Console.WriteLine(flag);
-
+            Debug.WriteLine("finish");
         }
     }
 }
