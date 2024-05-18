@@ -6,43 +6,45 @@ namespace WinNotifier
 {
     internal class WebClient(string apiKey, TimeSpan timeOut)
     {
-        private string apiKey = apiKey;
-        private int timeOutSeconds = timeOut.Seconds;
+        private readonly string apiKey = apiKey;
+        private readonly long timeOutMilliseconds = (long)timeOut.TotalMilliseconds;
+        private readonly string postURL = "https://www.notifymydevice.com/push";
 
-        private HttpClient? ProvideHttpClient()
+        private static HttpClient? ProvideHttpClient()
         {
-            // определяем коллекцию сервисов
             var services = new ServiceCollection();
-            // добавляем сервисы, связанные с HttpClient, в том числе IHttpClientFactory
             services.AddHttpClient();
-            // создаем провайдер сервисов
             var serviceProvider = services.BuildServiceProvider();
-            // получаем сервис IHttpClientFactory
             var httpClientFactory = serviceProvider.GetService<IHttpClientFactory>();
-            // создаем объект HttpClient
             return httpClientFactory?.CreateClient();
         }
 
+        /// <summary>
+        /// Отправляет уведомление через https://www.notifymydevice.com/push с некоторым query
+        /// В случае сбоя отправки выполняет её повтор каждые 0.5 секунд в течении timeOut времени
+        /// </summary>
         public bool Post(string title, string message)
         {
-            const int delay = 500;
-            int totalTime = 0;
+            const int delay = 500;  // milliseconds
+            long totalTime = 0;
+
+            HttpClient? httpClient = ProvideHttpClient();
 
             do
             {
-                if (TryPost(title, message)) return true;
+                httpClient ??= ProvideHttpClient();
+                if (TryPost(httpClient, title, message)) return true;
 
                 Task.Delay(delay).Wait();
                 totalTime += delay;
             }
-            while (totalTime <= timeOutSeconds);
+            while (totalTime <= timeOutMilliseconds);
 
-            return TryPost(title, message);
+            return TryPost(httpClient, title, message);
         }
 
-        private bool TryPost(string title, string message)
+        private bool TryPost(HttpClient? httpClient, string title, string message)
         {
-            HttpClient? httpClient = ProvideHttpClient();
             if (httpClient == null) return false;
             try
             {
@@ -55,17 +57,14 @@ namespace WinNotifier
 
                 HttpContent content = new FormUrlEncodedContent(values);
 
-                var response = httpClient.PostAsync("https://www.notifymydevice.com/push", content).Result;
+                var response = httpClient.PostAsync(postURL, content).Result;
 
                 var responseString = response.Content.ReadAsStringAsync().Result;
 
-                Debug.WriteLine(responseString);
-
                 return response.IsSuccessStatusCode;
             }
-            catch (Exception ex)
+            catch
             {
-                Debug.WriteLine(ex.Message);
                 return false;
             }
         }

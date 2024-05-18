@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using Windows.UI.Notifications;
 
 namespace WinNotifier
 {
@@ -6,16 +7,36 @@ namespace WinNotifier
     {
         static void Main(string[] args)
         {
-            var client = new WebClient("...", TimeSpan.FromMinutes(10));
+            if (args.Length == 0)
+            {
+                ShowToast();
+                Process.Start(new ProcessStartInfo("faq.pdf") { UseShellExecute = true });
+                return;
+            }
 
-            string message;
-            if (args.Length > 0) message = String.Join(separator: "; ", args);
-            else
-                 message = "<No message>";
-            
-            client.Post(title: "Honor", message: message);
+            var json = new JsonLoader(args[0]);
 
-            Debug.WriteLine("finish");
+            var client = new WebClient(
+                apiKey: json.ApiKey,
+                timeOut: TimeSpan.FromSeconds(json.TimeOutSeconds)
+                );
+
+            string message = $"[{DateTime.Now}] {json.PushText}";
+
+            bool result = client.Post(title: json.PushTitle, message: message);
+        }
+
+        static void ShowToast()
+        {
+            var notifier = ToastNotificationManager.CreateToastNotifier("WinNotifier");
+            var toastXml = ToastNotificationManager.GetTemplateContent(ToastTemplateType.ToastText01);
+            var textNodes = toastXml.GetElementsByTagName("text");
+            textNodes[0].AppendChild(toastXml.CreateTextNode("Требуется файл настроек в качестве параметра (формат json)"));
+            var toast = new ToastNotification(toastXml)
+            {
+                ExpirationTime = DateTime.Now.AddSeconds(5)
+            };
+            notifier.Show(toast);
         }
     }
 }
