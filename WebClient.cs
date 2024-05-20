@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
+using System.Net;
 
 
 namespace WinNotifier
@@ -9,6 +10,12 @@ namespace WinNotifier
         private readonly string apiKey = apiKey;
         private readonly long timeOutMilliseconds = (long)timeOut.TotalMilliseconds;
         private readonly string postURL = "https://www.notifymydevice.com/push";
+
+        public enum Status {
+            OK,
+            NO_CONNECTION,
+            WRONG_API_KEY,
+        }
 
         private static HttpClient? ProvideHttpClient()
         {
@@ -23,7 +30,7 @@ namespace WinNotifier
         /// Отправляет уведомление через https://www.notifymydevice.com/push с некоторым query
         /// В случае сбоя отправки выполняет её повтор каждые 0.5 секунд в течении timeOut времени
         /// </summary>
-        public bool Post(string title, string message)
+        public Status Post(string title, string message)
         {
             const int delay = 500;  // milliseconds
             long totalTime = 0;
@@ -33,18 +40,21 @@ namespace WinNotifier
             do
             {
                 httpClient ??= ProvideHttpClient();
-                if (TryPost(httpClient, title, message)) return true;
+                if (TryPost(httpClient, title, message, out var statusCode)) return Status.OK;
+
+                if (statusCode == HttpStatusCode.InternalServerError) return Status.WRONG_API_KEY;
 
                 Task.Delay(delay).Wait();
                 totalTime += delay;
             }
             while (totalTime <= timeOutMilliseconds);
 
-            return TryPost(httpClient, title, message);
+            return TryPost(httpClient, title, message, out _) ? Status.OK : Status.NO_CONNECTION;
         }
 
-        private bool TryPost(HttpClient? httpClient, string title, string message)
+        private bool TryPost(HttpClient? httpClient, string title, string message, out HttpStatusCode? code)
         {
+            code = null;
             if (httpClient == null) return false;
             try
             {
@@ -61,7 +71,9 @@ namespace WinNotifier
 
                 var responseString = response.Content.ReadAsStringAsync().Result;
 
-                return response.IsSuccessStatusCode;
+                code = response?.StatusCode;
+
+                return response?.IsSuccessStatusCode ?? false;
             }
             catch
             {
