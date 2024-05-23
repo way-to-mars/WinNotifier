@@ -13,8 +13,8 @@ namespace WinNotifier
         public JsonLoader(string fileFullName)
         {
             ApiKey = "";
-            PushTitle = "";
-            PushText = "";
+            PushTitle = " ";
+            PushText = " ";
             TimeOutSeconds = 10 * 60;
 
             try

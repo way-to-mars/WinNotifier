@@ -2,7 +2,7 @@
   "profiles": {
     "WinNotifier": {
       "commandName": "Project",
-      "commandLineArgs": "\"D:\\Code\\Settings.ini\""
+      "commandLineArgs": "\"C:\\Program Files\\WinNotifier\\startup.ini\""
     }
   }
 }
